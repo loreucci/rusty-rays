@@ -2,6 +2,9 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::io::Write;
 
+extern crate rusty_rays;
+use rusty_rays::color::{write_color, Color};
+
 fn main() {
     // image
     let image_width = 256;
@@ -18,15 +21,15 @@ fn main() {
     for j in (0..image_height).rev() {
         println!("scanlines remaining: {j}");
         for i in 0..image_width {
-            let r = i as f64 / (image_width - 1) as f64;
-            let g = j as f64 / (image_height - 1) as f64;
-            let b: f64 = 0.25;
+            let pixel_color = Color::new(
+                i as f64 / (image_width - 1) as f64,
+                j as f64 / (image_height - 1) as f64,
+                0.25,
+            );
 
-            let ir = (255.999 * r).trunc() as i32;
-            let ig = (255.999 * g).trunc() as i32;
-            let ib = (255.999 * b).trunc() as i32;
-
-            writeln!(f, "{ir} {ig} {ib}").unwrap();
+            write_color(&mut f, &pixel_color).unwrap();
         }
     }
+
+    println!("Done!");
 }
