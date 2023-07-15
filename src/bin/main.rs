@@ -4,22 +4,17 @@ use std::io::Write;
 
 extern crate rusty_rays;
 use rusty_rays::color::{write_color, Color};
+use rusty_rays::objects::{Hittable, Sphere, World};
 use rusty_rays::ray::Ray;
-use rusty_rays::vec3::{dot, unit_vector, Point3, Vec3};
+use rusty_rays::utils::INFINITY;
+use rusty_rays::vec3::{unit_vector, Point3, Vec3};
 
-fn hit_sphere(center: &Point3, radius: f64, r: &Ray) -> bool {
-    let oc = r.origin() - *center;
-    let a = dot(&r.direction(), &r.direction());
-    let b = 2.0 * dot(&oc, &r.direction());
-    let c = dot(&oc, &oc) - radius * radius;
-    let discriminant = b * b - 4.0 * a * c;
-    discriminant > 0.0
-}
-
-fn ray_color(r: &Ray) -> Color {
-    if hit_sphere(&Point3::new(0.0, 0.0, -1.0), 0.5, r) {
-        Color::new(1.0, 0.0, 0.0)
+fn ray_color(r: &Ray, object: &impl Hittable) -> Color {
+    let rec = object.hit(r, 0.0, INFINITY);
+    if rec.hit {
+        (rec.normal + Color::new(1.0, 1.0, 1.0)) * 0.5
     } else {
+        // background
         let unit_direction = unit_vector(&r.direction());
         let t = 0.5 * (unit_direction.y() + 1.0);
         Color::new(1.0, 1.0, 1.0) * (1.0 - t) + Color::new(0.5, 0.7, 1.0) * t
@@ -34,6 +29,11 @@ fn main() {
 
     // file
     let mut f = BufWriter::new(File::create("output.ppm").expect("Unable to create file"));
+
+    // world
+    let mut world = World::new();
+    world.add(&Sphere::new(Point3::new(0.0, 0.0, -1.0), 0.5));
+    world.add(&Sphere::new(Point3::new(0.0, -100.5, -1.0), 100.0));
 
     // camera
     let viewport_height = 2.0;
@@ -57,7 +57,7 @@ fn main() {
             let u = i as f64 / (image_width - 1) as f64;
             let v = j as f64 / (image_height - 1) as f64;
             let r = Ray::new(origin, lower_left_corner + horizontal * u + vertical * v);
-            let pixel_color = ray_color(&r);
+            let pixel_color = ray_color(&r, &world);
             write_color(&mut f, &pixel_color).unwrap();
         }
     }

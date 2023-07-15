@@ -174,7 +174,7 @@ pub type Point3 = Vec3;
 
 #[cfg(test)]
 mod tests {
-    use crate::vec3::Vec3;
+    use super::Vec3;
 
     fn assert_is_close(x: f64, y: f64) {
         assert!((x - y).abs() < 0.0001);
