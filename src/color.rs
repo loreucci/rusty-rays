@@ -3,10 +3,12 @@ use crate::vec3::Vec3;
 
 pub type Color = Vec3;
 
-pub fn color_to_pixel(c: &Color) -> Pixel {
-    let r = (255.999 * c.x()).trunc() as u8;
-    let g = (255.999 * c.y()).trunc() as u8;
-    let b = (255.999 * c.z()).trunc() as u8;
+pub fn color_to_pixel(c: &Color, samples_per_pixel: i32) -> Pixel {
+    let scale = 1.0 / samples_per_pixel as f64;
 
-    Pixel { r, g, b }
+    Pixel {
+        r: (256.0 * (c.x() * scale).clamp(0.0, 0.999)) as u8,
+        g: (256.0 * (c.y() * scale).clamp(0.0, 0.999)) as u8,
+        b: (256.0 * (c.z() * scale).clamp(0.0, 0.999)) as u8,
+    }
 }
