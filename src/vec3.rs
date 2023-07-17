@@ -1,3 +1,4 @@
+use crate::utils::{random, random_between};
 use std::fmt::Display;
 use std::ops::{
     Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Neg, Sub, SubAssign,
@@ -15,6 +16,35 @@ impl Vec3 {
 
     pub fn new(e0: f64, e1: f64, e2: f64) -> Self {
         Self { e: [e0, e1, e2] }
+    }
+
+    pub fn random() -> Self {
+        Self {
+            e: [random(), random(), random()],
+        }
+    }
+
+    pub fn random_between(min: f64, max: f64) -> Self {
+        Self {
+            e: [
+                random_between(min, max),
+                random_between(min, max),
+                random_between(min, max),
+            ],
+        }
+    }
+
+    pub fn random_in_unit_sphere() -> Self {
+        loop {
+            let p = Self::random_between(-1.0, 1.0);
+            if p.length_squared() < 1.0 {
+                break p;
+            }
+        }
+    }
+
+    pub fn random_unit_vector() -> Self {
+        unit_vector(&Self::random_in_unit_sphere())
     }
 
     pub fn x(&self) -> f64 {
@@ -165,10 +195,6 @@ impl Display for Vec3 {
         write!(f, "({}, {}, {})", self.e[0], self.e[1], self.e[2])
     }
 }
-
-// inline std::ostream& operator<<(std::ostream &out, const vec3 &v) {
-//     return out << v.e[0] << ' ' << v.e[1] << ' ' << v.e[2];
-// }
 
 pub type Point3 = Vec3;
 
