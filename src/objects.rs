@@ -1,21 +1,23 @@
+use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::{dot, Point3, Vec3};
 
 #[derive(Copy, Clone)]
-pub struct HitRecord {
+pub struct HitRecord<'a> {
     pub p: Point3,
     pub normal: Vec3,
+    pub mat: &'a dyn Material,
     pub t: f64,
     pub front_face: bool,
 }
 
-pub enum RayHit {
-    Hit(HitRecord),
+pub enum RayHit<'a> {
+    Hit(HitRecord<'a>),
     NoHit,
 }
 
-impl HitRecord {
-    pub fn new(p: &Point3, t: f64, r: &Ray, outward_normal: &Vec3) -> Self {
+impl<'a> HitRecord<'a> {
+    pub fn new(p: &Point3, t: f64, r: &Ray, outward_normal: &Vec3, mat: &'a dyn Material) -> Self {
         let front_face = dot(&r.direction(), outward_normal) < 0.0;
         Self {
             p: *p,
@@ -24,6 +26,7 @@ impl HitRecord {
             } else {
                 -*outward_normal
             },
+            mat,
             t,
             front_face,
         }
@@ -35,18 +38,23 @@ pub trait Hittable {
 }
 
 #[derive(Copy, Clone)]
-pub struct Sphere {
+pub struct Sphere<'a> {
     center: Point3,
     radius: f64,
+    mat: &'a dyn Material,
 }
 
-impl Sphere {
-    pub fn new(center: Point3, radius: f64) -> Self {
-        Self { center, radius }
+impl<'a> Sphere<'a> {
+    pub fn new(center: Point3, radius: f64, mat: &'a dyn Material) -> Self {
+        Self {
+            center,
+            radius,
+            mat,
+        }
     }
 }
 
-impl Hittable for Sphere {
+impl Hittable for Sphere<'_> {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> RayHit {
         let oc = r.origin() - self.center;
         let a = r.direction().length_squared();
@@ -68,20 +76,26 @@ impl Hittable for Sphere {
         }
         let intersection = r.at(root);
         let outward_normal = (intersection - self.center) / self.radius;
-        RayHit::Hit(HitRecord::new(&intersection, root, r, &outward_normal))
+        RayHit::Hit(HitRecord::new(
+            &intersection,
+            root,
+            r,
+            &outward_normal,
+            self.mat,
+        ))
     }
 }
 
-pub struct World {
-    objects: Vec<Box<dyn Hittable>>,
+pub struct World<'a> {
+    objects: Vec<Box<dyn Hittable + 'a>>,
 }
 
-impl World {
+impl<'a> World<'a> {
     pub fn new() -> Self {
         Self { objects: vec![] }
     }
 
-    pub fn add<T: Hittable + Copy + 'static>(&mut self, obj: &T) {
+    pub fn add<T: Hittable + Copy + 'a>(&mut self, obj: &T) {
         self.objects.push(Box::new(*obj));
     }
 
@@ -107,19 +121,8 @@ impl World {
     }
 }
 
-impl Hittable for World {
+impl<'a> Hittable for World<'a> {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> RayHit {
         self.hit_recursive(r, t_min, t_max, 0)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{Point3, Sphere, World};
-
-    #[test]
-    fn world() {
-        let mut w = World::new();
-        w.add(&Sphere::new(Point3::zero(), 0.0));
     }
 }

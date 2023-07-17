@@ -66,6 +66,11 @@ impl Vec3 {
     pub fn length_squared(&self) -> f64 {
         return self.e[0] * self.e[0] + self.e[1] * self.e[1] + self.e[2] * self.e[2];
     }
+
+    pub fn is_near_zero(&self) -> bool {
+        let s = 1e-8;
+        (self.e[0].abs() < s) && (self.e[1].abs() < s) && (self.e[2].abs() < s)
+    }
 }
 
 impl Neg for Vec3 {
@@ -188,6 +193,10 @@ pub fn cross(x: &Vec3, y: &Vec3) -> Vec3 {
 
 pub fn unit_vector(v: &Vec3) -> Vec3 {
     *v / v.length()
+}
+
+pub fn reflect(v: &Vec3, n: &Vec3) -> Vec3 {
+    *v - *n * 2.0 * dot(v, n)
 }
 
 impl Display for Vec3 {
