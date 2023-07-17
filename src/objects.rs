@@ -1,29 +1,23 @@
 use crate::ray::Ray;
 use crate::vec3::{dot, Point3, Vec3};
 
+#[derive(Copy, Clone)]
 pub struct HitRecord {
-    pub hit: bool,
     pub p: Point3,
     pub normal: Vec3,
     pub t: f64,
     pub front_face: bool,
 }
 
-impl HitRecord {
-    pub fn no_hit() -> Self {
-        Self {
-            hit: false,
-            p: Point3::zero(),
-            normal: Vec3::zero(),
-            t: 0.0,
-            front_face: false,
-        }
-    }
+pub enum RayHit {
+    Hit(HitRecord),
+    NoHit,
+}
 
-    pub fn hit(p: &Point3, t: f64, r: &Ray, outward_normal: &Vec3) -> Self {
+impl HitRecord {
+    pub fn new(p: &Point3, t: f64, r: &Ray, outward_normal: &Vec3) -> Self {
         let front_face = dot(&r.direction(), outward_normal) < 0.0;
         Self {
-            hit: true,
             p: *p,
             normal: if front_face {
                 *outward_normal
@@ -37,7 +31,7 @@ impl HitRecord {
 }
 
 pub trait Hittable {
-    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> HitRecord;
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> RayHit;
 }
 
 #[derive(Copy, Clone)]
@@ -53,7 +47,7 @@ impl Sphere {
 }
 
 impl Hittable for Sphere {
-    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> HitRecord {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> RayHit {
         let oc = r.origin() - self.center;
         let a = r.direction().length_squared();
         let half_b = dot(&oc, &r.direction());
@@ -61,7 +55,7 @@ impl Hittable for Sphere {
 
         let discriminant = half_b * half_b - a * c;
         if discriminant < 0.0 {
-            return HitRecord::no_hit();
+            return RayHit::NoHit;
         }
 
         let sqrtd = discriminant.sqrt();
@@ -69,12 +63,12 @@ impl Hittable for Sphere {
         if root < t_min || t_max < root {
             root = (-half_b + sqrtd) / a;
             if root < t_min || t_max < root {
-                return HitRecord::no_hit();
+                return RayHit::NoHit;
             }
         }
         let intersection = r.at(root);
         let outward_normal = (intersection - self.center) / self.radius;
-        HitRecord::hit(&intersection, root, r, &outward_normal)
+        RayHit::Hit(HitRecord::new(&intersection, root, r, &outward_normal))
     }
 }
 
@@ -94,20 +88,28 @@ impl World {
     pub fn clear(&mut self) {
         self.objects.clear();
     }
+
+    fn hit_recursive(&self, r: &Ray, t_min: f64, t_max: f64, i: usize) -> RayHit {
+        if i >= self.objects.len() {
+            return RayHit::NoHit;
+        }
+        let obj = &self.objects[i];
+        let ray_hit = obj.hit(r, t_min, t_max);
+        let closest_so_far = match ray_hit {
+            RayHit::NoHit => t_max,
+            RayHit::Hit(rec) => rec.t,
+        };
+        let ray_hit_next = self.hit_recursive(r, t_min, closest_so_far, i + 1);
+        match ray_hit_next {
+            RayHit::NoHit => ray_hit,
+            RayHit::Hit(_) => ray_hit_next,
+        }
+    }
 }
 
 impl Hittable for World {
-    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> HitRecord {
-        let mut hit_record = HitRecord::no_hit();
-        let mut closest_so_far = t_max;
-        for object in &self.objects {
-            let rec = object.hit(r, t_min, closest_so_far);
-            if rec.hit {
-                hit_record = rec;
-                closest_so_far = hit_record.t;
-            }
-        }
-        hit_record
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> RayHit {
+        self.hit_recursive(r, t_min, t_max, 0)
     }
 }
 
