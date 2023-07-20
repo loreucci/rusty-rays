@@ -4,7 +4,7 @@ extern crate rusty_rays;
 use rusty_rays::camera::Camera;
 use rusty_rays::color::{color_to_pixel, Color};
 use rusty_rays::image::{Image, PPMImage};
-use rusty_rays::material::{Lambertian, Metal, RayScatter};
+use rusty_rays::material::{Dielectric, Lambertian, Metal, RayScatter};
 use rusty_rays::objects::{Hittable, RayHit, Sphere, World};
 use rusty_rays::ray::Ray;
 use rusty_rays::utils::{random, INFINITY};
@@ -16,16 +16,12 @@ fn ray_color(r: &Ray, object: &impl Hittable, depth: u32) -> Color {
     }
     let ray_hit = object.hit(r, 0.001, INFINITY);
     match ray_hit {
-        RayHit::Hit(rec) => {
-            match rec.mat.scatter(r, &rec) {
-                RayScatter::Scatter(scattered) => {
-                    scattered.attenuation * ray_color(&scattered.ray, object, depth - 1)
-                }
-                RayScatter::NoScatter => Color::zero(),
+        RayHit::Hit(rec) => match rec.mat.scatter(r, &rec) {
+            RayScatter::Scatter(scattered) => {
+                scattered.attenuation * ray_color(&scattered.ray, object, depth - 1)
             }
-            // let target = rec.p + rec.normal + Point3::random_unit_vector();
-            // ray_color(&Ray::new(rec.p, target - rec.p), object, depth - 1) * 0.5
-        }
+            RayScatter::NoScatter => Color::zero(),
+        },
         RayHit::NoHit => {
             // background
             let unit_direction = unit_vector(&r.direction());
@@ -38,9 +34,9 @@ fn ray_color(r: &Ray, object: &impl Hittable, depth: u32) -> Color {
 fn main() {
     // world
     let material_ground = Lambertian::new(Color::new(0.8, 0.8, 0.0));
-    let material_center = Lambertian::new(Color::new(0.7, 0.3, 0.3));
-    let material_left = Metal::new(Color::new(0.8, 0.8, 0.8), 0.3);
-    let material_right = Metal::new(Color::new(0.8, 0.6, 0.2), 1.0);
+    let material_center = Lambertian::new(Color::new(0.1, 0.2, 0.5));
+    let material_left = Dielectric::new(1.5);
+    let material_right = Metal::new(Color::new(0.8, 0.6, 0.2), 0.0);
     let mut world = World::new();
     world.add(&Sphere::new(
         Point3::new(0.0, -100.5, -1.0),
@@ -55,6 +51,11 @@ fn main() {
     world.add(&Sphere::new(
         Point3::new(-1.0, 0.0, -1.0),
         0.5,
+        &material_left,
+    ));
+    world.add(&Sphere::new(
+        Point3::new(-1.0, 0.0, -1.0),
+        -0.4,
         &material_left,
     ));
     world.add(&Sphere::new(

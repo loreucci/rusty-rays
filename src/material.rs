@@ -2,6 +2,7 @@ use crate::{
     color::Color,
     objects::HitRecord,
     ray::Ray,
+    utils::random,
     vec3::{dot, reflect, unit_vector, Vec3},
 };
 
@@ -68,5 +69,48 @@ impl Material for Metal {
         } else {
             RayScatter::NoScatter
         }
+    }
+}
+
+pub struct Dielectric {
+    ir: f64,
+}
+
+impl Dielectric {
+    pub fn new(index_of_refraction: f64) -> Self {
+        Self {
+            ir: index_of_refraction,
+        }
+    }
+}
+
+impl Material for Dielectric {
+    fn scatter(&self, r: &Ray, rec: &HitRecord) -> RayScatter {
+        let refraction_ratio = if rec.front_face {
+            (1.0) / self.ir
+        } else {
+            self.ir
+        };
+        let unit_direction = unit_vector(&r.direction());
+        let cos_theta = dot(&-unit_direction, &rec.normal).min(1.0);
+        let sin_theta = (1.0 - cos_theta.powi(2)).sqrt();
+        let refractance = {
+            let r0 = ((1.0 - refraction_ratio) / (1.0 + refraction_ratio)).powi(2);
+            r0 + (1.0 - r0) * (1.0 - cos_theta).powi(5)
+        };
+        let direction = if refraction_ratio * sin_theta > 1.0 || refractance > random() {
+            reflect(&unit_direction, &rec.normal)
+        } else {
+            let uv = &unit_direction;
+            let n = &rec.normal;
+            let r_out_perp = (*uv + *n * cos_theta) * refraction_ratio;
+            let r_out_parallel = -*n * (1.0 - r_out_perp.length_squared()).sqrt();
+            r_out_perp + r_out_parallel
+        };
+
+        RayScatter::Scatter(Scattered {
+            attenuation: Color::new(1.0, 1.0, 1.0),
+            ray: Ray::new(rec.p, direction),
+        })
     }
 }
