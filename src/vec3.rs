@@ -47,6 +47,15 @@ impl Vec3 {
         unit_vector(&Self::random_in_unit_sphere())
     }
 
+    pub fn random_in_unit_disc() -> Self {
+        loop {
+            let p = Vec3::new(random_between(-1.0, 1.0), random_between(-1.0, 1.0), 0.0);
+            if p.length_squared() < 1.0 {
+                break p;
+            }
+        }
+    }
+
     pub fn x(&self) -> f64 {
         self.e[0]
     }
