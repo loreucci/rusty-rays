@@ -8,7 +8,7 @@ use rusty_rays::material::{Dielectric, Lambertian, Metal, RayScatter};
 use rusty_rays::objects::{Hittable, RayHit, Sphere, World};
 use rusty_rays::ray::Ray;
 use rusty_rays::utils::{random, INFINITY};
-use rusty_rays::vec3::{unit_vector, Point3};
+use rusty_rays::vec3::{unit_vector, Point3, Vec3};
 
 fn ray_color(r: &Ray, object: &impl Hittable, depth: u32) -> Color {
     if depth == 0 {
@@ -64,8 +64,23 @@ fn main() {
         &material_right,
     ));
 
-    // camera
-    let camera = Camera::new(16.0 / 9.0, 2.0, 1.0);
+    // // camera
+    // let camera = Camera::new(
+    //     Point3::new(-2.0, 2.0, 1.0),
+    //     Point3::new(0.0, 0.0, -1.0),
+    //     Vec3::new(0.0, 1.0, 0.0),
+    //     16.0 / 9.0,
+    //     90.0,
+    // );
+
+    // camera (zoomed)
+    let camera = Camera::new(
+        Point3::new(-2.0, 2.0, 1.0),
+        Point3::new(0.0, 0.0, -1.0),
+        Vec3::new(0.0, 1.0, 0.0),
+        16.0 / 9.0,
+        20.0,
+    );
 
     // image
     let mut image = PPMImage::new("output.ppm", 400, 225);
