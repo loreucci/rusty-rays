@@ -31,6 +31,59 @@ fn ray_color(r: &Ray, object: &impl Hittable, depth: u32) -> Color {
     }
 }
 
+fn cover_world() -> World {
+    let mut world = World::new();
+
+    // ground
+    world.add(&Sphere::new(
+        Point3::new(0.0, -1000.0, 0.0),
+        1000.0,
+        &Lambertian::new(Color::new(0.5, 0.5, 0.50)),
+    ));
+
+    // random small spheres
+    for a in -11..11 {
+        for b in -11..11 {
+            let choose_mat = random();
+            let center = Point3::new(a as f64 + 0.9 * random(), 0.2, b as f64 + 0.9 * random());
+
+            if (center - Point3::new(4.0, 0.2, 0.0)).length() <= 0.9 {
+                continue;
+            }
+
+            let m = if choose_mat < 0.8 {
+                let albedo = Color::random() * Color::random();
+                Lambertian::new(albedo)
+            } else if choose_mat < 0.95 {
+                let albedo = Color::random_between(0.5, 1.0);
+                let fuzz = random_between(0.0, 0.5);
+                Metal::new(albedo, fuzz)
+            } else {
+                Dielectric::new(1.5)
+            };
+            world.add(&Sphere::new(center, 0.2, &m));
+        }
+    }
+
+    // big spheres
+    world.add(&Sphere::new(
+        Point3::new(0.0, 1.0, 0.0),
+        1.0,
+        &Dielectric::new(1.5),
+    ));
+    world.add(&Sphere::new(
+        Point3::new(-4.0, 1.0, 0.0),
+        1.0,
+        &Lambertian::new(Color::new(0.4, 0.2, 0.1)),
+    ));
+    world.add(&Sphere::new(
+        Point3::new(4.0, 1.0, 0.0),
+        1.0,
+        &Metal::new(Color::new(0.7, 0.6, 0.5), 0.0),
+    ));
+    world
+}
+
 fn main() {
     // // world
     // let material_ground = Lambertian::new(Color::new(0.8, 0.8, 0.0));
@@ -65,66 +118,7 @@ fn main() {
     // ));
 
     // cover world
-    // materials
-    let ground_material = Lambertian::new(Color::new(0.5, 0.5, 0.50));
-    let mut lambertians: Vec<Lambertian> = vec![];
-    let mut lambertians_c: Vec<Point3> = vec![];
-    let mut metals: Vec<Metal> = vec![];
-    let mut metals_c: Vec<Point3> = vec![];
-    let mut dielectrics: Vec<Dielectric> = vec![];
-    let mut dielectrics_c: Vec<Point3> = vec![];
-    let material1 = Dielectric::new(1.5);
-    let material2 = Lambertian::new(Color::new(0.4, 0.2, 0.1));
-    let material3 = Metal::new(Color::new(0.7, 0.6, 0.5), 0.0);
-
-    let mut world = World::new();
-
-    // ground
-    world.add(&Sphere::new(
-        Point3::new(0.0, -1000.0, 0.0),
-        1000.0,
-        &ground_material,
-    ));
-
-    // random small spheres
-    for a in -11..11 {
-        for b in -11..11 {
-            let choose_mat = random();
-            let center = Point3::new(a as f64 + 0.9 * random(), 0.2, b as f64 + 0.9 * random());
-
-            if (center - Point3::new(4.0, 0.2, 0.0)).length() <= 0.9 {
-                continue;
-            }
-
-            if choose_mat < 0.8 {
-                let albedo = Color::random() * Color::random();
-                lambertians.push(Lambertian::new(albedo));
-                lambertians_c.push(center);
-            } else if choose_mat < 0.95 {
-                let albedo = Color::random_between(0.5, 1.0);
-                let fuzz = random_between(0.0, 0.5);
-                metals.push(Metal::new(albedo, fuzz));
-                metals_c.push(center);
-            } else {
-                dielectrics.push(Dielectric::new(1.5));
-                dielectrics_c.push(center);
-            }
-        }
-    }
-    for i in 0..lambertians.len() {
-        world.add(&Sphere::new(lambertians_c[i], 0.2, &lambertians[i]));
-    }
-    for i in 0..metals.len() {
-        world.add(&Sphere::new(metals_c[i], 0.2, &metals[i]));
-    }
-    for i in 0..dielectrics.len() {
-        world.add(&Sphere::new(dielectrics_c[i], 0.2, &dielectrics[i]));
-    }
-
-    // big spheres
-    world.add(&Sphere::new(Point3::new(0.0, 1.0, 0.0), 1.0, &material1));
-    world.add(&Sphere::new(Point3::new(-4.0, 1.0, 0.0), 1.0, &material2));
-    world.add(&Sphere::new(Point3::new(4.0, 1.0, 0.0), 1.0, &material3));
+    let world = cover_world();
 
     // // camera
     // let camera = Camera::new(

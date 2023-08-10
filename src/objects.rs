@@ -1,23 +1,23 @@
 use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::{dot, Point3, Vec3};
+use std::rc::Rc;
 
-#[derive(Copy, Clone)]
-pub struct HitRecord<'a> {
+pub struct HitRecord {
     pub p: Point3,
     pub normal: Vec3,
-    pub mat: &'a dyn Material,
+    pub mat: Rc<dyn Material>,
     pub t: f64,
     pub front_face: bool,
 }
 
-pub enum RayHit<'a> {
-    Hit(HitRecord<'a>),
+pub enum RayHit {
+    Hit(HitRecord),
     NoHit,
 }
 
-impl<'a> HitRecord<'a> {
-    pub fn new(p: &Point3, t: f64, r: &Ray, outward_normal: &Vec3, mat: &'a dyn Material) -> Self {
+impl HitRecord {
+    pub fn new(p: &Point3, t: f64, r: &Ray, outward_normal: &Vec3, mat: &Rc<dyn Material>) -> Self {
         let front_face = dot(&r.direction(), outward_normal) < 0.0;
         Self {
             p: *p,
@@ -26,7 +26,7 @@ impl<'a> HitRecord<'a> {
             } else {
                 -*outward_normal
             },
-            mat,
+            mat: mat.clone(),
             t,
             front_face,
         }
@@ -37,24 +37,23 @@ pub trait Hittable {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> RayHit;
 }
 
-#[derive(Copy, Clone)]
-pub struct Sphere<'a> {
+pub struct Sphere {
     center: Point3,
     radius: f64,
-    mat: &'a dyn Material,
+    mat: Rc<dyn Material>,
 }
 
-impl<'a> Sphere<'a> {
-    pub fn new(center: Point3, radius: f64, mat: &'a dyn Material) -> Self {
-        Self {
+impl Sphere {
+    pub fn new(center: Point3, radius: f64, mat: &Rc<dyn Material>) -> Rc<dyn Hittable> {
+        Rc::new(Self {
             center,
             radius,
-            mat,
-        }
+            mat: mat.clone(),
+        })
     }
 }
 
-impl Hittable for Sphere<'_> {
+impl Hittable for Sphere {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> RayHit {
         let oc = r.origin() - self.center;
         let a = r.direction().length_squared();
@@ -81,22 +80,22 @@ impl Hittable for Sphere<'_> {
             root,
             r,
             &outward_normal,
-            self.mat,
+            &self.mat,
         ))
     }
 }
 
-pub struct World<'a> {
-    objects: Vec<Box<dyn Hittable + 'a>>,
+pub struct World {
+    objects: Vec<Rc<dyn Hittable>>,
 }
 
-impl<'a> World<'a> {
+impl World {
     pub fn new() -> Self {
         Self { objects: vec![] }
     }
 
-    pub fn add<T: Hittable + Copy + 'a>(&mut self, obj: &T) {
-        self.objects.push(Box::new(*obj));
+    pub fn add(&mut self, obj: &Rc<dyn Hittable>) {
+        self.objects.push(obj.clone());
     }
 
     pub fn clear(&mut self) {
@@ -111,7 +110,7 @@ impl<'a> World<'a> {
         let ray_hit = obj.hit(r, t_min, t_max);
         let closest_so_far = match ray_hit {
             RayHit::NoHit => t_max,
-            RayHit::Hit(rec) => rec.t,
+            RayHit::Hit(ref rec) => rec.t,
         };
         let ray_hit_next = self.hit_recursive(r, t_min, closest_so_far, i + 1);
         match ray_hit_next {
@@ -121,7 +120,7 @@ impl<'a> World<'a> {
     }
 }
 
-impl<'a> Hittable for World<'a> {
+impl Hittable for World {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> RayHit {
         self.hit_recursive(r, t_min, t_max, 0)
     }

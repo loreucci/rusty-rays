@@ -5,6 +5,7 @@ use crate::{
     utils::random,
     vec3::{dot, reflect, unit_vector, Vec3},
 };
+use std::rc::Rc;
 
 pub struct Scattered {
     pub attenuation: Color,
@@ -25,8 +26,8 @@ pub struct Lambertian {
 }
 
 impl Lambertian {
-    pub fn new(albedo: Color) -> Self {
-        Self { albedo }
+    pub fn new(albedo: Color) -> Rc<dyn Material> {
+        Rc::new(Self { albedo })
     }
 }
 
@@ -49,11 +50,11 @@ pub struct Metal {
 }
 
 impl Metal {
-    pub fn new(albedo: Color, fuzz: f64) -> Self {
-        Self {
+    pub fn new(albedo: Color, fuzz: f64) -> Rc<dyn Material> {
+        Rc::new(Self {
             albedo,
             fuzz: fuzz.clamp(0.0, 1.0),
-        }
+        })
     }
 }
 
@@ -77,10 +78,10 @@ pub struct Dielectric {
 }
 
 impl Dielectric {
-    pub fn new(index_of_refraction: f64) -> Self {
-        Self {
+    pub fn new(index_of_refraction: f64) -> Rc<dyn Material> {
+        Rc::new(Self {
             ir: index_of_refraction,
-        }
+        })
     }
 }
 
