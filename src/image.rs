@@ -22,7 +22,8 @@ pub struct PPMImage {
 
 impl PPMImage {
     pub fn new(file_name: &str, width: u32, height: u32) -> Self {
-        let mut f = BufWriter::new(File::create(file_name).expect("Unable to create file"));
+        let full_name = file_name.to_owned() + ".ppm";
+        let mut f = BufWriter::new(File::create(full_name).expect("Unable to create file"));
         writeln!(f, "P3").unwrap();
         writeln!(f, "{width} {height}").unwrap();
         writeln!(f, "255").unwrap();

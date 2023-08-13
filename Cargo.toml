@@ -11,3 +11,4 @@ path = "src/bin/main.rs"
 
 [dependencies]
 rand = "0.8.5"
+clap = { version = "4", features = ["derive"]}

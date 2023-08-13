@@ -1,35 +1,14 @@
-use std::io::{self, Write};
+use clap::Parser;
 
 extern crate rusty_rays;
 use rusty_rays::camera::Camera;
-use rusty_rays::color::{color_to_pixel, Color};
-use rusty_rays::image::{Image, PPMImage};
-use rusty_rays::material::{Dielectric, Lambertian, Metal, RayScatter};
-use rusty_rays::objects::{Hittable, RayHit, Sphere, World};
-use rusty_rays::ray::Ray;
-use rusty_rays::utils::{random, random_between, INFINITY};
-use rusty_rays::vec3::{unit_vector, Point3, Vec3};
-
-fn ray_color(r: &Ray, object: &impl Hittable, depth: u32) -> Color {
-    if depth == 0 {
-        return Color::zero();
-    }
-    let ray_hit = object.hit(r, 0.001, INFINITY);
-    match ray_hit {
-        RayHit::Hit(rec) => match rec.mat.scatter(r, &rec) {
-            RayScatter::Scatter(scattered) => {
-                scattered.attenuation * ray_color(&scattered.ray, object, depth - 1)
-            }
-            RayScatter::NoScatter => Color::zero(),
-        },
-        RayHit::NoHit => {
-            // background
-            let unit_direction = unit_vector(&r.direction());
-            let t = 0.5 * (unit_direction.y() + 1.0);
-            Color::new(1.0, 1.0, 1.0) * (1.0 - t) + Color::new(0.5, 0.7, 1.0) * t
-        }
-    }
-}
+use rusty_rays::color::Color;
+use rusty_rays::image::PPMImage;
+use rusty_rays::material::{Dielectric, Lambertian, Metal};
+use rusty_rays::objects::{Sphere, World};
+use rusty_rays::render::render;
+use rusty_rays::utils::{random, random_between};
+use rusty_rays::vec3::{Point3, Vec3};
 
 fn cover_world() -> World {
     let mut world = World::new();
@@ -84,97 +63,111 @@ fn cover_world() -> World {
     world
 }
 
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// output filename (without extension)
+    #[arg(short, long, default_value_t = String::from("output"))]
+    output: String,
+
+    /// output width
+    #[arg(short, long, default_value_t = 640)]
+    width: u32,
+
+    /// output height
+    #[arg(short, long, default_value_t = 360)]
+    height: u32,
+
+    /// samples per pixel
+    #[arg(short, long, default_value_t = 100)]
+    samples: u32,
+
+    /// max depth of rays
+    #[arg(short, long, default_value_t = 50)]
+    depth: u32,
+}
+
 fn main() {
-    // // world
-    // let material_ground = Lambertian::new(Color::new(0.8, 0.8, 0.0));
-    // let material_center = Lambertian::new(Color::new(0.1, 0.2, 0.5));
-    // let material_left = Dielectric::new(1.5);
-    // let material_right = Metal::new(Color::new(0.8, 0.6, 0.2), 0.0);
-    // let mut world = World::new();
-    // world.add(&Sphere::new(
-    //     Point3::new(0.0, -100.5, -1.0),
-    //     100.0,
-    //     &lambertians[0],
-    // ));
-    // world.add(&Sphere::new(
-    //     Point3::new(0.0, 0.0, -1.0),
-    //     0.5,
-    //     &material_center,
-    // ));
-    // world.add(&Sphere::new(
-    //     Point3::new(-1.0, 0.0, -1.0),
-    //     0.5,
-    //     &material_left,
-    // ));
-    // world.add(&Sphere::new(
-    //     Point3::new(-1.0, 0.0, -1.0),
-    //     -0.4,
-    //     &material_left,
-    // ));
-    // world.add(&Sphere::new(
-    //     Point3::new(1.0, 0.0, -1.0),
-    //     0.5,
-    //     &material_right,
-    // ));
+    // parse arguments
+    let args = Args::parse();
+
+    // world
+    let material_ground = Lambertian::new(Color::new(0.8, 0.8, 0.0));
+    let material_center = Lambertian::new(Color::new(0.1, 0.2, 0.5));
+    let material_left = Dielectric::new(1.5);
+    let material_right = Metal::new(Color::new(0.8, 0.6, 0.2), 0.0);
+    let mut world = World::new();
+    world.add(&Sphere::new(
+        Point3::new(0.0, -100.5, -1.0),
+        100.0,
+        &material_ground,
+    ));
+    world.add(&Sphere::new(
+        Point3::new(0.0, 0.0, -1.0),
+        0.5,
+        &material_center,
+    ));
+    world.add(&Sphere::new(
+        Point3::new(-1.0, 0.0, -1.0),
+        0.5,
+        &material_left,
+    ));
+    world.add(&Sphere::new(
+        Point3::new(-1.0, 0.0, -1.0),
+        -0.4,
+        &material_left,
+    ));
+    world.add(&Sphere::new(
+        Point3::new(1.0, 0.0, -1.0),
+        0.5,
+        &material_right,
+    ));
 
     // cover world
-    let world = cover_world();
+    // let world = cover_world();
 
     // // camera
-    // let camera = Camera::new(
-    //     Point3::new(-2.0, 2.0, 1.0),
-    //     Point3::new(0.0, 0.0, -1.0),
-    //     Vec3::new(0.0, 1.0, 0.0),
-    //     90.0,
-    //     16.0 / 9.0,
-    // );
-
-    // // camera (zoomed)
-    // let lookfrom = Point3::new(3.0, 3.0, 2.0);
+    // let lookfrom = Point3::new(-2.0, 2.0, 1.0);
     // let lookat = Point3::new(0.0, 0.0, -1.0);
     // let camera = Camera::new(
     //     lookfrom,
     //     lookat,
     //     Vec3::new(0.0, 1.0, 0.0),
-    //     20.0,
+    //     90.0,
     //     16.0 / 9.0,
     //     2.0,
     //     (lookfrom - lookat).length(),
     // );
 
-    // camera (cover)
-    let lookfrom = Point3::new(13.0, 2.0, 3.0);
-    let lookat = Point3::new(0.0, 0.0, 0.0);
+    // camera (zoomed)
+    let lookfrom = Point3::new(3.0, 3.0, 2.0);
+    let lookat = Point3::new(0.0, 0.0, -1.0);
     let camera = Camera::new(
         lookfrom,
         lookat,
         Vec3::new(0.0, 1.0, 0.0),
         20.0,
-        3.0 / 2.0,
-        0.1,
-        10.0,
+        16.0 / 9.0,
+        2.0,
+        (lookfrom - lookat).length(),
     );
 
+    // // camera (cover)
+    // let lookfrom = Point3::new(13.0, 2.0, 3.0);
+    // let lookat = Point3::new(0.0, 0.0, 0.0);
+    // let camera = Camera::new(
+    //     lookfrom,
+    //     lookat,
+    //     Vec3::new(0.0, 1.0, 0.0),
+    //     20.0,
+    //     3.0 / 2.0,
+    //     0.1,
+    //     10.0,
+    // );
+
     // image
-    let mut image = PPMImage::new("output.ppm", 1200, 800);
-    let samples_per_pixel = 100;
-    let max_depth = 50;
+    let mut image = PPMImage::new(&args.output, args.width, args.height);
 
     // render
-    for j in (0..image.height()).rev() {
-        print!("\rscanlines remaining: {j} ");
-        io::stdout().flush().unwrap();
-        for i in 0..image.width() {
-            let mut pixel_color = Color::zero();
-            for _ in 0..samples_per_pixel {
-                let u = (i as f64 + random()) / (image.width() - 1) as f64;
-                let v = (j as f64 + random()) / (image.height() - 1) as f64;
-                let r = camera.get_ray(u, v);
-                pixel_color += ray_color(&r, &world, max_depth);
-            }
-            image.write(&color_to_pixel(&pixel_color, samples_per_pixel));
-        }
-    }
-
-    println!("\nDone!");
+    render(&world, &camera, &mut image, args.samples, args.depth);
 }
