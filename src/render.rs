@@ -1,4 +1,6 @@
 use std::io::{self, Write};
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 use crate::camera::Camera;
 use crate::color::{color_to_pixel, Color};
@@ -33,24 +35,60 @@ fn ray_color(r: &Ray, object: &impl Hittable, depth: u32) -> Color {
 pub fn render(
     world: &World,
     camera: &Camera,
-    image: &mut dyn Image,
+    width: u16,
+    height: u16,
     samples_per_pixel: u32,
     max_depth: u32,
-) {
-    for j in (0..image.height()).rev() {
-        print!("\rscanlines remaining: {j} ");
-        io::stdout().flush().unwrap();
-        for i in 0..image.width() {
-            let mut pixel_color = Color::zero();
-            for _ in 0..samples_per_pixel {
-                let u = (i as f64 + random()) / (image.width() - 1) as f64;
-                let v = (j as f64 + random()) / (image.height() - 1) as f64;
-                let r = camera.get_ray(u, v);
-                pixel_color += ray_color(&r, world, max_depth);
-            }
-            image.write(&color_to_pixel(&pixel_color, samples_per_pixel));
+    threads: u32,
+) -> Image {
+    let _img = Image::new(width, height);
+    let mut _img_it = _img.iter();
+    let img = Arc::new(Mutex::new(_img));
+    let img_it = Arc::new(Mutex::new(_img_it));
+    let remaining = Arc::new(Mutex::new(height));
+
+    thread::scope(|s| {
+        for _ in 0..threads {
+            let img = Arc::clone(&img);
+            let img_it = Arc::clone(&img_it);
+            let remaining = Arc::clone(&remaining);
+            s.spawn(move || {
+                loop {
+                    let p = {
+                        // let mut lock = img_it.lock().unwrap();
+                        match img_it.lock().unwrap().next() {
+                            Some(v) => v,
+                            None => break,
+                        }
+                    };
+                    {
+                        let mut rem = remaining.lock().unwrap();
+                        if *rem == p.y + 1 {
+                            print!("\rscanlines remaining: {} ", *rem);
+                            io::stdout().flush().unwrap();
+                            *rem -= 1;
+                        }
+                    }
+                    let mut pixel_color = Color::zero();
+                    for _ in 0..samples_per_pixel {
+                        let u = (p.x as f64 + random()) / (width - 1) as f64;
+                        let v = (p.y as f64 + random()) / (height - 1) as f64;
+                        let r = camera.get_ray(u, v);
+                        pixel_color += ray_color(&r, world, max_depth);
+                    }
+                    {
+                        img.lock()
+                            .unwrap()
+                            .set_color(&p, &color_to_pixel(&pixel_color, samples_per_pixel));
+                    }
+                }
+            });
         }
-    }
+    });
 
     println!("\nDone!");
+    Arc::try_unwrap(img)
+        .unwrap_or_else(|_| panic!("Error when accessing image mutex"))
+        .into_inner()
+        .unwrap()
 }

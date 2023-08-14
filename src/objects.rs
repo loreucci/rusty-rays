@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
@@ -36,11 +36,11 @@ impl HitRecord {
     }
 }
 
-pub trait Hittable {
+pub trait Hittable: Sync + Send {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> RayHit;
 }
 
-pub type Object = Rc<dyn Hittable>;
+pub type Object = Arc<dyn Hittable>;
 
 pub struct Sphere {
     center: Point3,
@@ -56,7 +56,7 @@ pub struct SphereDescription {
 
 impl Sphere {
     pub fn new(center: Point3, radius: f64, mat: &MaterialPtr) -> Object {
-        Rc::new(Self {
+        Arc::new(Self {
             center,
             radius,
             mat: mat.clone(),

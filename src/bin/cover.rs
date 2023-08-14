@@ -1,7 +1,9 @@
+use std::process;
+
 extern crate rusty_rays;
 use rusty_rays::camera::Camera;
 use rusty_rays::color::Color;
-use rusty_rays::image::PPMImage;
+use rusty_rays::image::save_ppm;
 use rusty_rays::material::{Dielectric, Lambertian, Metal};
 use rusty_rays::objects::{Sphere, World};
 use rusty_rays::render::render;
@@ -73,9 +75,10 @@ fn main() {
         10.0,
     );
 
-    // image
-    let mut image = PPMImage::new("cover.ppm", 1280, 800);
-
     // render
-    render(&world, &camera, &mut image, 100, 50);
+    let image = render(&world, &camera, 1200, 800, 100, 50, 8);
+    save_ppm("cover", &image).unwrap_or_else(|err| {
+        eprintln!("Error saving file: {}", err);
+        process::exit(1)
+    });
 }

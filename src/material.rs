@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 
@@ -20,11 +20,11 @@ pub enum RayScatter {
     NoScatter,
 }
 
-pub trait Material {
+pub trait Material: Sync + Send {
     fn scatter(&self, r: &Ray, rec: &HitRecord) -> RayScatter;
 }
 
-pub type MaterialPtr = Rc<dyn Material>;
+pub type MaterialPtr = Arc<dyn Material>;
 
 pub struct Lambertian {
     albedo: Color,
@@ -37,7 +37,7 @@ pub struct LambertianDescription {
 
 impl Lambertian {
     pub fn new(albedo: Color) -> MaterialPtr {
-        Rc::new(Self { albedo })
+        Arc::new(Self { albedo })
     }
 
     pub fn from(desc: &LambertianDescription) -> MaterialPtr {
@@ -71,7 +71,7 @@ pub struct MetalDescription {
 
 impl Metal {
     pub fn new(albedo: Color, fuzz: f64) -> MaterialPtr {
-        Rc::new(Self {
+        Arc::new(Self {
             albedo,
             fuzz: fuzz.clamp(0.0, 1.0),
         })
@@ -111,7 +111,7 @@ pub struct DielectricDescription {
 
 impl Dielectric {
     pub fn new(index_of_refraction: f64) -> MaterialPtr {
-        Rc::new(Self {
+        Arc::new(Self {
             ir: index_of_refraction,
         })
     }

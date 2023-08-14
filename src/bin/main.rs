@@ -3,7 +3,7 @@ use std::process;
 use clap::Parser;
 
 extern crate rusty_rays;
-use rusty_rays::image::PPMImage;
+use rusty_rays::image::save_ppm;
 use rusty_rays::render::render;
 use rusty_rays::scene::parse_scene;
 
@@ -16,11 +16,11 @@ struct Args {
 
     /// output width
     #[arg(short, long, default_value_t = 640)]
-    width: u32,
+    width: u16,
 
     /// output height
     #[arg(short, long, default_value_t = 360)]
-    height: u32,
+    height: u16,
 
     /// samples per pixel
     #[arg(short, long, default_value_t = 100)]
@@ -29,6 +29,10 @@ struct Args {
     /// max depth of rays
     #[arg(short, long, default_value_t = 50)]
     depth: u32,
+
+    /// number of threads used for rendering
+    #[arg(short, long, default_value_t = 1)]
+    threads: u32,
 
     /// json file with the scene
     scene: String,
@@ -44,15 +48,20 @@ fn main() {
         process::exit(1)
     });
 
-    // image
-    let mut image = PPMImage::new(&args.output, args.width, args.height);
-
     // render
-    render(
+    let image = render(
         &scene.world,
         &scene.camera,
-        &mut image,
+        args.width,
+        args.height,
         args.samples,
         args.depth,
+        args.threads,
     );
+
+    // save to file
+    save_ppm(&args.output, &image).unwrap_or_else(|err| {
+        eprintln!("Error saving file: {}", err);
+        process::exit(1)
+    });
 }
