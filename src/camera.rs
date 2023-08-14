@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 use crate::ray::Ray;
 use crate::utils::deg_to_rad;
 use crate::vec3::{cross, unit_vector, Point3, Vec3};
@@ -10,6 +12,17 @@ pub struct Camera {
     u: Vec3,
     v: Vec3,
     lens_radius: f64,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CameraDescription {
+    lookfrom: [f64; 3],
+    lookat: [f64; 3],
+    vup: [f64; 3],
+    vfov: f64,
+    aspect_ratio: f64,
+    aperture: f64,
+    focus_dist: f64,
 }
 
 impl Camera {
@@ -45,6 +58,18 @@ impl Camera {
             v,
             lens_radius: aperture / 2.0,
         }
+    }
+
+    pub fn from(desc: &CameraDescription) -> Self {
+        Self::new(
+            Point3::new(desc.lookfrom[0], desc.lookfrom[1], desc.lookfrom[2]),
+            Point3::new(desc.lookat[0], desc.lookat[1], desc.lookat[2]),
+            Point3::new(desc.vup[0], desc.vup[1], desc.vup[2]),
+            desc.vfov,
+            desc.aspect_ratio,
+            desc.aperture,
+            desc.focus_dist,
+        )
     }
 
     pub fn get_ray(&self, s: f64, t: f64) -> Ray {

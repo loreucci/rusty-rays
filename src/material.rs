@@ -1,3 +1,7 @@
+use std::rc::Rc;
+
+use serde::{Deserialize, Serialize};
+
 use crate::{
     color::Color,
     objects::HitRecord,
@@ -5,7 +9,6 @@ use crate::{
     utils::random,
     vec3::{dot, reflect, unit_vector, Vec3},
 };
-use std::rc::Rc;
 
 pub struct Scattered {
     pub attenuation: Color,
@@ -21,13 +24,24 @@ pub trait Material {
     fn scatter(&self, r: &Ray, rec: &HitRecord) -> RayScatter;
 }
 
+pub type MaterialPtr = Rc<dyn Material>;
+
 pub struct Lambertian {
     albedo: Color,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct LambertianDescription {
+    albedo: [f64; 3],
+}
+
 impl Lambertian {
-    pub fn new(albedo: Color) -> Rc<dyn Material> {
+    pub fn new(albedo: Color) -> MaterialPtr {
         Rc::new(Self { albedo })
+    }
+
+    pub fn from(desc: &LambertianDescription) -> MaterialPtr {
+        Self::new(Color::new(desc.albedo[0], desc.albedo[1], desc.albedo[2]))
     }
 }
 
@@ -49,12 +63,25 @@ pub struct Metal {
     fuzz: f64,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct MetalDescription {
+    albedo: [f64; 3],
+    fuzz: f64,
+}
+
 impl Metal {
-    pub fn new(albedo: Color, fuzz: f64) -> Rc<dyn Material> {
+    pub fn new(albedo: Color, fuzz: f64) -> MaterialPtr {
         Rc::new(Self {
             albedo,
             fuzz: fuzz.clamp(0.0, 1.0),
         })
+    }
+
+    pub fn from(desc: &MetalDescription) -> MaterialPtr {
+        Self::new(
+            Color::new(desc.albedo[0], desc.albedo[1], desc.albedo[2]),
+            desc.fuzz,
+        )
     }
 }
 
@@ -77,11 +104,20 @@ pub struct Dielectric {
     ir: f64,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct DielectricDescription {
+    refraction: f64,
+}
+
 impl Dielectric {
-    pub fn new(index_of_refraction: f64) -> Rc<dyn Material> {
+    pub fn new(index_of_refraction: f64) -> MaterialPtr {
         Rc::new(Self {
             ir: index_of_refraction,
         })
+    }
+
+    pub fn from(desc: &DielectricDescription) -> MaterialPtr {
+        Self::new(desc.refraction)
     }
 }
 
@@ -113,5 +149,24 @@ impl Material for Dielectric {
             attenuation: Color::new(1.0, 1.0, 1.0),
             ray: Ray::new(rec.p, direction),
         })
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum MaterialDescription {
+    #[serde(rename = "lambertian")]
+    Lambertian(LambertianDescription),
+    #[serde(rename = "metal")]
+    Metal(MetalDescription),
+    #[serde(rename = "dielectric")]
+    Dielectric(DielectricDescription),
+}
+
+pub fn create_material(desc: &MaterialDescription) -> MaterialPtr {
+    match desc {
+        MaterialDescription::Lambertian(d) => Lambertian::from(d),
+        MaterialDescription::Metal(d) => Metal::from(d),
+        MaterialDescription::Dielectric(d) => Dielectric::from(d),
     }
 }
