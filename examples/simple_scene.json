@@ -1,0 +1,52 @@
+{
+    "materials": {
+        "ground": {
+            "type": "lambertian",
+            "albedo": [0.8, 0.8, 0.0]
+        },
+        "center": {
+            "type": "lambertian",
+            "albedo": [0.1, 0.2, 0.5]
+        },
+        "left": {
+            "type": "dielectric",
+            "refraction": 1.5
+        },
+        "right": {
+            "type": "metal",
+            "albedo": [0.8, 0.6, 0.2],
+            "fuzz": 0.0
+        }
+    },
+    "world": [
+        {"type": "sphere",
+         "center": [0.0, -100.5, -1.0],
+         "radius": 100.0,
+         "material": "ground"},
+        {"type": "sphere",
+         "center": [0.0, 0.0, -1.0],
+         "radius": 0.5,
+         "material": "center"},
+        {"type": "sphere",
+         "center": [-1.0, 0.0, -1.0],
+         "radius": 0.5,
+         "material": "left"},
+        {"type": "sphere",
+         "center": [-1.0, 0.0, -1.0],
+         "radius": -0.4,
+         "material": "left"},
+        {"type": "sphere",
+         "center": [1.0, 0.0, -1.0],
+         "radius": 0.5,
+         "material": "right"}
+    ],
+    "camera": {
+        "lookfrom": [3.0, 3.0, 2.0],
+        "lookat": [0.0, 0.0, -1.0],
+        "vup": [0.0, 1.0, 0.0],
+        "vfov": 20.0,
+        "aspect_ratio": 1.77777777777,
+        "aperture": 2.0,
+        "focus_dist": 5.1961524227066324
+    }
+}
